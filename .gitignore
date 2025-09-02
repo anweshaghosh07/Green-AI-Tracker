@@ -1,0 +1,19 @@
+# Python & venv
+venv/
+__pycache__/
+*.pyc
+
+# Data & artifacts
+data/
+models/
+mlruns/
+*.sqlite3
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Streamlit / env
+.streamlit/
+env
