@@ -4,7 +4,9 @@ __pycache__/
 *.pyc
 
 # Data & artifacts
-data/
+data/*
+!data/baseline_metrics.csv
+!data/last_run_metrics.json
 models/
 mlruns/
 *.sqlite3
