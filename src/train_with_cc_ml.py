@@ -79,7 +79,7 @@ def main():
     model.fit(X_train_s, y_train)
     train_time_sec = time.time() - t0
 
-    emissions_kg = tracker.stop()
+    emissions_kg: dict = tracker.stop()
 
     # 6) Metrics
     y_pred = model.predict(X_test_s)
@@ -87,21 +87,22 @@ def main():
     acc = accuracy_score(y_test, y_pred)
     ll = log_loss(y_test, y_proba)
 
-    print(f"Training time (s): {train_time_sec:.3f}")
-    print(f"Accuracy: {acc:.4f}")
-    print(f"Log loss: {ll:.4f}")
-    print(f"Emissions (kg CO2eq): {emissions_kg:.6f}")
-    print("Classification report:\n", classification_report(y_test, y_pred))
-
-    # 7) Parse CodeCarbon log for energy + duration
+    # 7) Read the CSV to get the extra sustainability metrics.
     emissions_csv = EMISSIONS_DIR / "emissions.csv"
     energy_kwh = None
     cc_duration_s = None
     if emissions_csv.exists():
         df_cc = pd.read_csv(emissions_csv)
-        last = df_cc.tail(1).squeeze()
-        energy_kwh = float(last.get("energy_consumed", np.nan))
-        cc_duration_s = float(last.get("duration", np.nan))
+        if not df_cc.empty:
+            last_run_stats = df_cc.iloc[-1]
+            energy_kwh = last_run_stats.get("energy_consumed")
+            cc_duration_s = last_run_stats.get("duration")
+
+    print(f"Training time (s): {train_time_sec:.3f}")
+    print(f"Accuracy: {acc:.4f}")
+    print(f"Log loss: {ll:.4f}")
+    print(f"Emissions (kg CO2eq): {emissions_kg:.6f}")
+    print("Classification report:\n", classification_report(y_test, y_pred))
 
     # 8) Save model + scaler
     model_path = MODELS_DIR / "logreg_digits_mlflow_cc.joblib"
@@ -119,18 +120,14 @@ def main():
         "n_test": int(X_test.shape[0]),
         "model": "LogisticRegression",
         "notes": "digits + CodeCarbon + MLflow",
-        "emissions_kg": float(emissions_kg) if emissions_kg else None,
-        "energy_kwh": float(energy_kwh) if energy_kwh else None,
-        "cc_duration_s": float(cc_duration_s) if cc_duration_s else None,
+        "emissions_kg": float(emissions_kg) if emissions_kg is not None else 0,
+        "energy_kwh": float(energy_kwh) if energy_kwh is not None else 0,
+        "cc_duration_s": float(cc_duration_s) if cc_duration_s is not None else 0,
     }
 
     # 10) Save CSV + JSON
     dfm = pd.DataFrame([metrics])
-    if METRICS_CSV.exists():
-        dfm.to_csv(METRICS_CSV, mode="a", header=False, index=False)
-    else:
-        dfm.to_csv(METRICS_CSV, index=False)
-
+    dfm.to_csv(METRICS_CSV, mode="a", header=not METRICS_CSV.exists(), index=False)
     with open(DATA_DIR / "last_run_metrics.json", "w") as f:
         json.dump(metrics, f, indent=2)
 
@@ -145,23 +142,15 @@ def main():
             mlflow.log_param("solver", "saga")
             mlflow.log_param("max_iter", 500)
 
-            # Metrics
-            mlflow.log_metric("accuracy", acc)
-            mlflow.log_metric("log_loss", ll)
-            mlflow.log_metric("train_time_sec", train_time_sec)
-
-            if emissions_kg is not None:
-                mlflow.log_metric("emissions_kg", emissions_kg)
-            if energy_kwh is not None:
-                mlflow.log_metric("energy_kwh", energy_kwh)
-            if cc_duration_s is not None:
-                mlflow.log_metric("cc_duration_s", cc_duration_s)
+            # Metrics from the dict (only nemeric)
+            mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, (int, float))})
 
             # Artifacts
             mlflow.log_artifact(str(model_path))
+            mlflow.log_artifact(str(scaler_path))
             mlflow.log_artifact(str(DATA_DIR / "last_run_metrics.json"))
-            if emissions_csv.exists():
-                mlflow.log_artifact(str(emissions_csv))
+            if (EMISSIONS_DIR / "emissions.csv").exists():
+                mlflow.log_artifact(str(EMISSIONS_DIR / "emissions.csv"))
 
         print("Logged run to MLflow.")
 
