@@ -1,5 +1,7 @@
+numpy
 pandas
 scikit-learn
+joblib
 mlflow
 codecarbon
 streamlit

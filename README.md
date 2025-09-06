@@ -9,10 +9,14 @@ This project aims to develop a tool that trains standard machine learning models
 - Use MLflow to compare experiments based on both performance metrics (e.g., accuracy) and sustainability metrics (e.g., CO2eq).
 - Provide a Streamlit dashboard to visualize and compare the results.
 
+##  Motivation
+
+As AI models grow in complexity, their computational and energy demands skyrocket. This project aims to bring awareness to the environmental impact of ML by providing a simple, integrated dashboard to monitor the CO₂ emissions and energy usage alongside traditional performance metrics like accuracy.
+
 ## 🛠️ Tech Stack
 - **Experiment Tracking:** MLflow
 - **Sustainability Tracking:** CodeCarbon
-- **Automation/CI/CD:** GitHub Actions
+- **Automation/CI/CD & MLOps:** GitHub Actions
 - **Frontend:** Streamlit
 - **Core Libraries:** Scikit-learn, Pandas
 
