@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # We'll test against a common Python version
-        python-version: ["3.10,3.11"]
+        python-version: ["3.13"]
 
     steps:
     # 1. Checks out your repository's code
