@@ -4,6 +4,22 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import time
+import joblib
+
+# ML imports for fallback training
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, log_loss
+
+# CodeCarbon
+try:
+    from codecarbon import EmissionsTracker
+    CODECARBON_AVAILABLE = True
+except Exception:
+    CODECARBON_AVAILABLE = False
 
 # MLflow import 
 try:
@@ -16,17 +32,101 @@ except Exception:
 # Paths
 ROOT = Path(__file__).resolve().parents[0]
 DATA_DIR = ROOT / "data"
+MODELS_DIR = ROOT / "models"
+EMISSIONS_DIR = DATA_DIR / "emissions"
 METRICS_CSV = DATA_DIR / "baseline_metrics.csv"
-EMISSIONS_CSV = DATA_DIR / "emissions" / "emissions.csv"
+EMISSIONS_CSV = EMISSIONS_DIR / "emissions.csv"
 LAST_JSON = DATA_DIR / "last_run_metrics.json"
 
-st.set_page_config(page_title="Green AI Tracker", page_icon="🌍", layout="wide")
+# Ensure dirs exist
+for p in [DATA_DIR, MODELS_DIR, EMISSIONS_DIR]:
+    p.mkdir(parents=True, exist_ok=True)
 
+# -------------------------------------------------------------------
+# Fallback training function (runs only if no metrics exist)
+# -------------------------------------------------------------------
+def run_fallback_training():
+    st.warning("⚠️ No metrics found. Running a quick fallback training...")
+
+    digits = load_digits()
+    X = digits.data
+    y = digits.target
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_s = scaler.fit_transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
+    model = LogisticRegression(max_iter=200, solver="saga", multi_class="multinomial", n_jobs=-1)
+
+    tracker = None
+    if CODECARBON_AVAILABLE:
+        tracker = EmissionsTracker(
+            project_name="fallback_digits",
+            output_dir=str(EMISSIONS_DIR),
+            measure_power_secs=1,
+            save_to_file=True,
+            log_level="error",
+            tracking_mode="process"
+        )
+        tracker.start()
+
+    t0 = time.time()
+    model.fit(X_train_s, y_train)
+    train_time_sec = time.time() - t0
+
+    emissions_kg = tracker.stop() if tracker else 0.0
+
+    y_pred = model.predict(X_test_s)
+    y_proba = model.predict_proba(X_test_s)
+    acc = accuracy_score(y_test, y_pred)
+    ll = log_loss(y_test, y_proba)
+
+    # Read CodeCarbon outputs if present
+    energy_kwh, cc_duration_s = 0, 0
+    if EMISSIONS_CSV.exists():
+        df_cc = pd.read_csv(EMISSIONS_CSV)
+        if not df_cc.empty:
+            last = df_cc.iloc[-1]
+            energy_kwh = float(last.get("energy_consumed", 0))
+            cc_duration_s = float(last.get("duration", 0))
+
+    # Save artifacts
+    model_path = MODELS_DIR / "logreg_fallback.joblib"
+    joblib.dump(model, model_path)
+
+    metrics = {
+        "timestamp": time.time(),
+        "train_time_sec": train_time_sec,
+        "accuracy": acc,
+        "log_loss": ll,
+        "n_train": int(X_train.shape[0]),
+        "n_test": int(X_test.shape[0]),
+        "model": "LogisticRegression",
+        "notes": "fallback run (auto-triggered)",
+        "emissions_kg": emissions_kg,
+        "energy_kwh": energy_kwh,
+        "cc_duration_s": cc_duration_s,
+    }
+
+    # Save CSV + JSON
+    dfm = pd.DataFrame([metrics])
+    dfm.to_csv(METRICS_CSV, mode="a", header=not METRICS_CSV.exists(), index=False)
+    with open(LAST_JSON, "w") as f:
+        json.dump(metrics, f, indent=2)
+
+    st.success("✅ Fallback training complete. Data generated!")
+
+# -------------------------------------------------------------------
+# Streamlit UI
+# -------------------------------------------------------------------
+st.set_page_config(page_title="Green AI Tracker", page_icon="🌍", layout="centered")
 st.title("Sustainability & Green-AI🌍Usage Tracker")
 st.markdown(
     """
     Visualize the performance and environmental impact of machine learning model training runs.
-    Data is logged from experiments and updated here automatically upon refresh.
+    If no data is available, a quick fallback training will be executed automatically.
     """
 )
 
@@ -35,7 +135,11 @@ st.sidebar.header("🔹Data & Options")
 use_mlflow = st.sidebar.checkbox("Use MLflow (if available)", value=False and MLFLOW_AVAILABLE)
 st.sidebar.markdown("If MLflow is enabled, the app will try to fetch runs from the local tracking server.")
 
-# Load CSV metrics (preferred)
+# Trigger fallback training if no metrics exist
+if not METRICS_CSV.exists() or not LAST_JSON.exists():
+    run_fallback_training()
+
+# Load Data
 @st.cache_data
 def load_metrics_csv(path: Path):
     if not path.exists():
@@ -44,17 +148,7 @@ def load_metrics_csv(path: Path):
     df = pd.read_csv(path, on_bad_lines="skip")
     # Define the superset of expected columns
     expected_cols = [
-        "timestamp",
-        "train_time_sec",
-        "accuracy",
-        "log_loss",
-        "n_train",
-        "n_test",
-        "model",
-        "notes",
-        "emissions_kg",
-        "energy_kwh",
-        "cc_duration_s",
+        "timestamp", "train_time_sec", "accuracy", "log_loss", "n_train", "n_test", "model", "notes", "emissions_kg", "energy_kwh", "cc_duration_s",
     ]
     # Ensure all expected columns exist
     for col in expected_cols:
@@ -154,14 +248,7 @@ else:
         df = mlflow_df.copy()
 
     # --- Clean numeric columns globally ---
-    numeric_cols_to_fix = [
-        "accuracy",
-        "log_loss",
-        "train_time_sec",
-        "energy_kwh",
-        "emissions_kg",
-        "cc_duration_s",
-    ]
+    numeric_cols_to_fix = ["accuracy", "log_loss", "train_time_sec", "energy_kwh", "emissions_kg", "cc_duration_s",]
     for col in numeric_cols_to_fix:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)

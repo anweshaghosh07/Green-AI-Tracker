@@ -22,4 +22,4 @@ As AI models grow in complexity, their computational and energy demands skyrocke
 
 ## 📅 Initial Plan
 - **Week 1:** Foundational research and project setup.
-- **Week 2:** ...
+- **Week 2:** Core Development.

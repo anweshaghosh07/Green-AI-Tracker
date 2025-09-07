@@ -1,21 +1,29 @@
 # Python & venv
 venv/
+env/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # Data & artifacts
-data/*
-!data/baseline_metrics.csv
-!data/last_run_metrics.json
+data/
 models/
 mlruns/
 *.sqlite3
+
+# CodeCarbon cache
+data/emissions/
+.emissions_cache/
 
 # Editor / OS files
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
 
-# Streamlit / env
+# Streamlit 
 .streamlit/
-env
+
+# Logs
+*.log
