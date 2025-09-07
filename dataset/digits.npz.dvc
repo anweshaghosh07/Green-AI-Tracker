@@ -1,0 +1,5 @@
+outs:
+- md5: fdf04c9379cd6316b004bc1f063a0ebe
+  size: 74495
+  hash: md5
+  path: digits.npz

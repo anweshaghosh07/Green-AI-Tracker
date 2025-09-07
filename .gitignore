@@ -27,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Allow dataset folder (tracked via DVC)
+!dataset/
