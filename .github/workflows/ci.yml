@@ -45,17 +45,25 @@ jobs:
       run: |
         pytest || echo "No tests yet"
 
-    # 6. Install DVC
+    # 6. Install DVC with S3 support
     - name: Install DVC
       run: |
-        pip install dvc[all]
+        pip install dvc[S3]
 
     # 7. Pull dataset from DVC remote
     - name: DVC Pull
-      run: dvc pull
+      env:
+        # Provide credentials to DVC via environment variables
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: dvc pull -r cloud-storage # Explicitly pull from your named remote
 
     # 8. Reproduce pipeline (train + log)
     - name: DVC Repro
+      env:
+        # Credentials might be needed again if repro checks data status
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: dvc repro
 
     # 9. Show latest metrics
