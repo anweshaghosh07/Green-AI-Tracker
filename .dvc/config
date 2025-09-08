@@ -1,5 +1,5 @@
 [core]
-    remote = localstorage
+    remote = cloud-storage
 ['remote "localstorage"']
     url = C:/Users/anwes/dvc-storage
 ['remote "cloud-storage"']
