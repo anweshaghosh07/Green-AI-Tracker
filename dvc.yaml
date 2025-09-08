@@ -2,7 +2,7 @@ stages:
   train:
     cmd: python src/train_with_cc_ml.py
     deps:
-    - dataset/digits.npz
+    - dataset/
     - src/train_with_cc_ml.py
     outs:
     - data/baseline_metrics.csv
