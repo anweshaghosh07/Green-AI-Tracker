@@ -238,11 +238,9 @@ st.header("📈 Metrics Visualizations")
 if source == "none":
     st.info("No metrics available yet. Run the training script to produce metrics (baseline_metrics.csv & emissions.csv).")
 else:
-    if source == "csv":
-        df = metrics_df.copy()
-    else:
-        df = mlflow_df.copy()
-
+    # Always use the dataframe loaded from the CSV file.
+    df = metrics_df.copy()
+    
     # --- Clean numeric columns globally ---
     numeric_cols_to_fix = ["accuracy", "log_loss", "train_time_sec", "energy_kwh", "emissions_kg", "cc_duration_s",]
     for col in numeric_cols_to_fix:
