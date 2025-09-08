@@ -1,0 +1,31 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: python src/train_with_cc_ml.py
+    deps:
+    - path: dataset/digits.npz
+      hash: md5
+      md5: fdf04c9379cd6316b004bc1f063a0ebe
+      size: 74495
+    - path: src/train_with_cc_ml.py
+      hash: md5
+      md5: 41f5983c67be30a18c553ffe6165f74d
+      size: 5767
+    outs:
+    - path: data/baseline_metrics.csv
+      hash: md5
+      md5: 50fdf794a9cb3275a3ddbcb254b942de
+      size: 308
+    - path: data/emissions/emissions.csv
+      hash: md5
+      md5: 5b2666d3d5cb8b00856b6628e7e74f0b
+      size: 768
+    - path: data/last_run_metrics.json
+      hash: md5
+      md5: 0e2f9f85b1ab3af620bc6cebf938edbc
+      size: 390
+    - path: models/
+      hash: md5
+      md5: 994d526b6a7e8677820932eaa1bfde6d.dir
+      size: 8270
+      nfiles: 2
