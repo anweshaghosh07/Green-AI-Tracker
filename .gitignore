@@ -31,3 +31,4 @@ Thumbs.db
 # Allow dataset folder (tracked via DVC)
 !dataset/
 /models
+/dataset
