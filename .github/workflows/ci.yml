@@ -44,3 +44,21 @@ jobs:
     - name: Test with pytest
       run: |
         pytest || echo "No tests yet"
+
+    # 6. Install DVC
+    - name: Install DVC
+      run: |
+        pip install dvc[all]
+
+    # 7. Pull dataset from DVC remote
+    - name: DVC Pull
+      run: dvc pull
+
+    # 8. Reproduce pipeline (train + log)
+    - name: DVC Repro
+      run: dvc repro
+
+    # 9. Show latest metrics
+    - name: Show metrics
+      run: cat data/last_run_metrics.json || echo "Metrics file not found"
+    
