@@ -131,9 +131,9 @@ st.markdown(
 )
 
 # Sidebar controls
-st.sidebar.header("🔹Data & Options")
-use_mlflow = st.sidebar.checkbox("Use MLflow (if available)", value=False and MLFLOW_AVAILABLE)
-st.sidebar.markdown("If MLflow is enabled, the app will try to fetch runs from the local tracking server.")
+#st.sidebar.header("🔹Data & Options")
+#se_mlflow = st.sidebar.checkbox("Use MLflow (if available)", value=False and MLFLOW_AVAILABLE)
+#st.sidebar.markdown("If MLflow is enabled, the app will try to fetch runs from the local tracking server.")
 
 # Trigger fallback training if no metrics exist
 if not METRICS_CSV.exists() or not LAST_JSON.exists():
@@ -177,35 +177,35 @@ metrics_df = load_metrics_csv(METRICS_CSV)
 last_json = load_last_json(LAST_JSON)
 
 # Option: load MLflow runs
-mlflow_df = None
-if use_mlflow and MLFLOW_AVAILABLE:
-    try:
-        client = MlflowClient(tracking_uri=mlflow.get_tracking_uri())
-        # list experiments, choose one if available
-        exps = client.search_experiments()
-        if exps:
+#mlflow_df = None
+#if use_mlflow and MLFLOW_AVAILABLE:
+#    try:
+#       client = MlflowClient(tracking_uri=mlflow.get_tracking_uri())
+#        # list experiments, choose one if available
+#        exps = client.search_experiments()
+#        if exps:
             # pick the first experiment (or show selectbox in UI)
-            exp = st.sidebar.selectbox("Select experiment", [e.name for e in exps])
-            exp_id = [e.experiment_id for e in exps if e.name == exp][0]
-            runs = client.search_runs(exp_id, order_by=["attributes.start_time DESC"], max_results=50)
-            rows = []
-            for r in runs:
-                d = r.data
-                row = {
-                    "run_id": r.info.run_id,
-                    "start_time": r.info.start_time,
-                }
-                # copy over common metrics if present
-                for k, v in d.metrics.items():
-                    row[k] = v
-                for k, v in d.params.items():
-                    row[f"param_{k}"] = v
-                rows.append(row)
-            if rows:
-                mlflow_df = pd.DataFrame(rows)
-                mlflow_df["run_idx"] = np.arange(1, len(mlflow_df) + 1)
-    except Exception as e:
-        st.sidebar.error(f"MLflow fetch failed: {e}")
+#            exp = st.sidebar.selectbox("Select experiment", [e.name for e in exps])
+#            exp_id = [e.experiment_id for e in exps if e.name == exp][0]
+#            runs = client.search_runs(exp_id, order_by=["attributes.start_time DESC"], max_results=50)
+#           rows = []
+#            for r in runs:
+#               d = r.data
+#              row = {
+#                 "run_id": r.info.run_id,
+#                 "start_time": r.info.start_time,
+#                }
+#                # copy over common metrics if present
+#                for k, v in d.metrics.items():
+#                    row[k] = v
+#                for k, v in d.params.items():
+#                    row[f"param_{k}"] = v
+#                rows.append(row)
+#            if rows:
+#                mlflow_df = pd.DataFrame(rows)
+#                mlflow_df["run_idx"] = np.arange(1, len(mlflow_df) + 1)
+#    except Exception as e:
+#        st.sidebar.error(f"MLflow fetch failed: {e}")
 
 # Show data status
 st.subheader("Data status")
@@ -226,13 +226,9 @@ with col3:
     else:
         st.info("No last_run_metrics.json found.")
 
-# Choose source (CSV preferred, then MLflow)
+# Choose source (CSV)
 source = "csv"
-if mlflow_df is not None and st.sidebar.checkbox("Prefer MLflow data", value=False):
-    source = "mlflow"
-elif metrics_df is None and mlflow_df is not None:
-    source = "mlflow"
-elif metrics_df is None:
+if metrics_df is None:
     source = "none"
 
 # Main visualizations

@@ -8,6 +8,7 @@ Baseline + CodeCarbon + MLflow Integration
 - Logs everything into MLflow + local CSV/JSON
 """
 
+import os
 import time
 import json
 from pathlib import Path
@@ -75,7 +76,7 @@ def main():
     X_test_s = scaler.transform(X_test)
 
     # 4) Model
-    model = LogisticRegression(max_iter=500, solver="saga", multi_class="multinomial", n_jobs=-1)
+    model = LogisticRegression(max_iter=1000, solver="saga", multi_class="multinomial", n_jobs=-1)
 
     # ---- CodeCarbon tracker ----
     tracker = EmissionsTracker(
@@ -147,9 +148,22 @@ def main():
 
     # 11) MLflow logging
     if USE_MLFLOW:
-        mlflow.set_tracking_uri("http://127.0.0.1:5000")
+        # Check if running in GitHub Actions CI environment
+        is_ci_environment = os.getenv("CI") == "true"
+
+        if not is_ci_environment:
+            # Only set the tracking URI if running locally and server is active
+            try:
+                mlflow.set_tracking_uri("http://127.0.0.1:5000")
+                # Verify connection to avoid long timeouts if server isn't running
+                client = mlflow.tracking.MlflowClient()
+                client.search_experiments() 
+            except Exception as e:
+                print(f"Warning: Could not connect to MLflow server at http://127.0.0.1:5000. Logging to local './mlruns' instead.")
+        # Fallback to default local logging path
         print("MLflow tracking to:", mlflow.get_tracking_uri())
         mlflow.set_experiment("digits_codecarbon_mlflow")
+
         with mlflow.start_run():
             # Params
             mlflow.log_param("model", "LogisticRegression")
