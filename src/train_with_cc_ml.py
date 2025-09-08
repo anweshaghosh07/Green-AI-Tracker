@@ -43,6 +43,20 @@ MODELS_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 EMISSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
+def load_dataset():
+    dataset_path = ROOT / "dataset" / "digits.npz"
+    if dataset_path.exists():
+        print(f"Loading dataset from {dataset_path}")
+        d = np.load(dataset_path)
+        X = d["data"]
+        y = d["target"]
+    else:
+        print("Dataset file not found, using sklearn.load_digits() fallback")
+        digits = load_digits()
+        X = digits.data
+        y = digits.target
+    return X, y
+
 def main():
     # 1) Load dataset
     digits = load_digits()

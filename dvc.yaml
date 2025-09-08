@@ -1,0 +1,9 @@
+stages:
+  train:
+    cmd: python src/train_with_cc_ml.py
+    deps:
+    - dataset/digits.npz
+    - src/train_with_cc_ml.py
+    outs:
+    - data/last_run_metrics.json
+    - models
