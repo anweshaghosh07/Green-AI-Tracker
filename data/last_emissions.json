@@ -1,0 +1,13 @@
+{
+  "timestamp": 1756989282.8843951,
+  "train_time_sec": 1.0718958377838135,
+  "accuracy": 0.9722222222222222,
+  "log_loss": 0.11057468315538882,
+  "n_train": 1437,
+  "n_test": 360,
+  "model": "LogisticRegression",
+  "notes": "digits + CodeCarbon",
+  "emissions_kg": 8.535175104909544e-06,
+  "energy_kwh": 1.1963393055500798e-05,
+  "cc_duration_s": 1.0801131000043824
+}

@@ -1,0 +1,2 @@
+timestamp,train_time_sec,accuracy,log_loss,n_train,n_test,model,notes,emissions_kg,energy_kwh,cc_duration_s
+1757399975.516344,3.3810830116271973,0.9722222222222222,0.10325913791275552,1437,360,LogisticRegression,digits + CodeCarbon + MLflow,2.68116613368244e-05,3.75807688888421e-05,3.3899405999982264

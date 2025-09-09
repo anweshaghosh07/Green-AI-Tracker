@@ -1,0 +1,10 @@
+{
+  "timestamp": 1757081764.6297922,
+  "train_time_sec": 2.9446892738342285,
+  "accuracy": 0.9722222222222222,
+  "log_loss": 0.10788315495993686,
+  "n_train": 1437,
+  "n_test": 360,
+  "model": "LogisticRegression",
+  "notes": "sklearn digits baseline"
+}

@@ -7,7 +7,7 @@ __pycache__/
 *.pyd
 
 # Data & artifacts
-data/
+dataset/
 models/
 mlruns/
 *.sqlite3
@@ -28,7 +28,7 @@ Thumbs.db
 # Logs
 *.log
 
-# Allow dataset folder (tracked via DVC)
-!dataset/
-/models
-/dataset
+# DVC metadata exceptions
+!*.dvc
+!dvc.lock
+!dvc.yaml

@@ -3,29 +3,30 @@ stages:
   train:
     cmd: python src/train_with_cc_ml.py
     deps:
-    - path: dataset/digits.npz
+    - path: dataset/
       hash: md5
-      md5: fdf04c9379cd6316b004bc1f063a0ebe
-      size: 74495
+      md5: 4815fd53f2dec0bac474bfa8a9ceef1f.dir
+      size: 74508
+      nfiles: 2
     - path: src/train_with_cc_ml.py
       hash: md5
-      md5: 41f5983c67be30a18c553ffe6165f74d
-      size: 5767
+      md5: f2b35065d003ef61e9feb23d8911a272
+      size: 6448
     outs:
     - path: data/baseline_metrics.csv
       hash: md5
-      md5: 50fdf794a9cb3275a3ddbcb254b942de
-      size: 308
+      md5: 2fa94e1fa49bfa9f62abc1e3b2583cde
+      size: 304
     - path: data/emissions/emissions.csv
       hash: md5
-      md5: 5b2666d3d5cb8b00856b6628e7e74f0b
-      size: 768
+      md5: 7592332f2fc5bdef3ec0bec8698a5351
+      size: 767
     - path: data/last_run_metrics.json
       hash: md5
-      md5: 0e2f9f85b1ab3af620bc6cebf938edbc
-      size: 390
+      md5: 1d4e926636dfae1f2520ecf7d330af37
+      size: 386
     - path: models/
       hash: md5
-      md5: 994d526b6a7e8677820932eaa1bfde6d.dir
+      md5: 36c6221c45e63b979cc9d68d674d9774.dir
       size: 8270
       nfiles: 2

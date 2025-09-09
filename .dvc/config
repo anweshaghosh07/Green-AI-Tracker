@@ -1,6 +1,5 @@
 [core]
-    remote = cloud-storage
-['remote "localstorage"']
-    url = C:/Users/anwes/dvc-storage
-['remote "cloud-storage"']
-    url = s3://sustainability-tracker-data-ag/data
+    remote = myremote
+['remote "myremote"']
+    url = s3://sustainability-tracker-data-ag/dvcstore
+    endpointurl = https://s3.ap-south-1.amazonaws.com
