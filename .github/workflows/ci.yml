@@ -31,6 +31,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install flake8 pytest  # tools for linting and testing
+        pip install dvc[s3]      # DVC with S3 support
 
     # 4. Lints the code with flake8 to check for style issues
     - name: Lint with flake8
@@ -45,20 +46,15 @@ jobs:
       run: |
         pytest || echo "No tests yet"
 
-    # 6. Install DVC with S3 support
-    - name: Install DVC
-      run: |
-        pip install dvc[S3]
-
-    # 7. Pull dataset from DVC remote
+    # 6. Pull dataset from DVC remote
     - name: DVC Pull
       env:
         # Provide credentials to DVC via environment variables
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: dvc pull -r cloud-storage # Explicitly pull from your named remote
+      run: dvc pull -r myremote # Explicitly pull from your named remote
 
-    # 8. Reproduce pipeline (train + log)
+    # 7. Reproduce pipeline (train + log)
     - name: DVC Repro
       env:
         # Credentials might be needed again if repro checks data status
@@ -66,7 +62,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: dvc repro
 
-    # 9. Show latest metrics
+    # 8. Show latest metrics
     - name: Show metrics
       run: cat data/last_run_metrics.json || echo "Metrics file not found"
     
