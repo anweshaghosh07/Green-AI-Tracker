@@ -1,6 +1,5 @@
-name: Python CI
+name: Python CI/CD with DVC
 
-# This workflow runs on pushes to the main branch and on pull requests
 on:
   push:
     branches: [ "main" ]
@@ -12,57 +11,70 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"] # stable versions for ML libs
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    # 1. Checks out your repository's code
+    # 1. Checkout
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # 2. Sets up the specified version of Python
+    # 2. Setup Python
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
-    # 3. Installs project dependencies and tools for CI
+    # 3. Install dependencies
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install flake8 pytest  # tools for linting and testing
-        pip install dvc[s3]      # DVC with S3 support
+        pip install flake8 pytest
+        pip install dvc[s3]
 
-    # 4. Lints the code with flake8 to check for style issues
+    # 4. Lint
     - name: Lint with flake8
       run: |
-        # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    # 5. Runs tests with pytest (this will pass for now, but is ready for future tests)
-    - name: Test with pytest
-      run: |
-        pytest || echo "No tests yet"
+    # 5. Tests
+    - name: Run pytest
+      run: pytest || echo "No tests yet"
 
-    # 6. Pull dataset from DVC remote
+    # 6. Pull data + models from DVC remote
     - name: DVC Pull
       env:
-        # Provide credentials to DVC via environment variables
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: dvc pull -r myremote # Explicitly pull from your named remote
+      run: dvc pull -r myremote
 
-    # 7. Reproduce pipeline (train + log)
+    # 7. Run pipeline (training + metrics logging)
     - name: DVC Repro
       env:
-        # Credentials might be needed again if repro checks data status
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: dvc repro
 
-    # 8. Show latest metrics
-    - name: Show metrics
+    # 8. Verify metrics exist
+    - name: Verify metrics
+      run: |
+        if [ ! -f data/baseline_metrics.csv ]; then
+          echo "❌ baseline_metrics.csv missing"; exit 1;
+        fi
+        if [ ! -f data/last_run_metrics.json ]; then
+          echo "❌ last_run_metrics.json missing"; exit 1;
+        fi
+        echo "✅ Metrics files found"
+
+    # 9. Push DVC cache (models/dataset) to S3
+    - name: DVC Push 
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: dvc push -r myremote
+
+
+    # 10. Show latest metrics in logs
+    - name: Show metrics summary
       run: cat data/last_run_metrics.json || echo "Metrics file not found"
-    
