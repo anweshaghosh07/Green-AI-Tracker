@@ -2,6 +2,7 @@ numpy
 pandas
 scikit-learn
 joblib
+plotly
 codecarbon
 mlflow
 streamlit
