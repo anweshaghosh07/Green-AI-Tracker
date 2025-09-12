@@ -284,17 +284,23 @@ else:
     else:
         st.info("No energy data available — run CodeCarbon-enabled training to populate this chart.")
 
-    # table
+    # Runs Table
     st.subheader("Runs Table")
     show_cols = ["datetime", "model", "accuracy", "log_loss", "train_time_sec", "emissions_kg", "energy_kwh", "notes"]
-    display_df = filtered[show_cols].sort_values("datetime", ascending=False).reset_index(drop=True)
-    st.dataframe(display_df, use_container_width=True)
 
-    # Download buttons
-    csv = display_df.to_csv(index=False).encode("utf-8")
-    json_str = display_df.to_json(orient="records", date_format="iso")
-    st.download_button("Download CSV", csv, file_name="filtered_metrics.csv", mime="text/csv")
-    st.download_button("Download JSON", json_str, file_name="filtered_metrics.json", mime="application/json")
+    # Only keep columns that actually exist in the dataframe
+    available_cols = [c for c in show_cols if c in filtered.columns]
+    if available_cols:
+        display_df = filtered[available_cols].sort_values("datetime", ascending=False, na_position="last").reset_index(drop=True)
+        st.dataframe(display_df, use_container_width=True)
+
+        # Download buttons
+        csv = display_df.to_csv(index=False).encode("utf-8")
+        json_str = display_df.to_json(orient="records", date_format="iso")
+        st.download_button("Download CSV", csv, file_name="filtered_metrics.csv", mime="text/csv")
+        st.download_button("Download JSON", json_str, file_name="filtered_metrics.json", mime="application/json")
+    else:
+        st.info("No valid columns found to display runs table.")
 
 # CO2 saved analysis
 st.subheader("CO₂ Saved Analysis: Compare two models")
