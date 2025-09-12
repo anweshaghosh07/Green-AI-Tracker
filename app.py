@@ -207,16 +207,22 @@ st.markdown("Compare Accuracy vs CO₂ emissions across your ML experiments. Fil
 
 # Load data
 df = load_metrics()
-df = format_datetime_col(df)
-if df.empty:
+if df.empty or "datetime" not in df.columns or df["datetime"].dropna().empty:
     df = run_fallback_training()
+df = format_datetime_col(df)
 
 # Sidebar filters
 st.sidebar.header("🔹Filters & Settings")
 models = sorted(df["model"].dropna().unique().tolist())
 selected_models = st.sidebar.multiselect("Select Model(s)", options=models, default=models if models else [])
-min_date = df["datetime"].min().date() if not df.empty else datetime.now().date()
-max_date = df["datetime"].max().date() if not df.empty else datetime.now().date()
+if "datetime" in df.columns and not df["datetime"].dropna().empty:
+    min_date = df["datetime"].min().date()
+    max_date = df["datetime"].max().date()
+else:
+    # fallback to today
+    min_date = datetime.now().date()
+    max_date = datetime.now().date()
+
 date_range = st.sidebar.date_input("Date range", value=(min_date, max_date), min_value=min_date, max_value=max_date)
 
 # apply filters
