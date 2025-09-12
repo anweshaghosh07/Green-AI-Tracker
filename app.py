@@ -229,10 +229,15 @@ date_range = st.sidebar.date_input("Date range", value=(min_date, max_date), min
 filtered = df.copy()
 if selected_models:
     filtered = filtered[filtered["model"].isin(selected_models)]
-if isinstance(date_range, tuple) and len(date_range) == 2:
-    start_dt = pd.to_datetime(date_range[0])
-    end_dt = pd.to_datetime(date_range[1]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-    filtered = filtered[(filtered["datetime"] >= start_dt) & (filtered["datetime"] <= end_dt)]
+
+if "datetime" in filtered.columns and not filtered["datetime"].dropna().empty:
+    if isinstance(date_range, tuple) and len(date_range) == 2:
+        start_dt = pd.to_datetime(date_range[0])
+        end_dt = pd.to_datetime(date_range[1]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+        filtered = filtered[(filtered["datetime"] >= start_dt) & (filtered["datetime"] <= end_dt)]
+else:
+    # ensure datetime exists for later plots
+    filtered["datetime"] = pd.date_range(end=pd.Timestamp.now(), periods=len(filtered)).to_pydatetime()
 
 # Main layout: KPIs and plots
 kpi1, kpi2, kpi3 = st.columns(3)
