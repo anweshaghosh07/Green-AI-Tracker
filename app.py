@@ -208,6 +208,8 @@ st.markdown("Compare Accuracy vs CO₂ emissions across your ML experiments. Fil
 # Load data
 df = load_metrics()
 df = format_datetime_col(df)
+if df.empty:
+    df = run_fallback_training()
 
 # Sidebar filters
 st.sidebar.header("🔹Filters & Settings")
