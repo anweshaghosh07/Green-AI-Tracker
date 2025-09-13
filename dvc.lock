@@ -15,18 +15,18 @@ stages:
     outs:
     - path: data/baseline_metrics.csv
       hash: md5
-      md5: 2fa94e1fa49bfa9f62abc1e3b2583cde
-      size: 304
+      md5: 6935eaf01ac3b4a42b0226346a0e8386
+      size: 309
     - path: data/emissions/emissions.csv
       hash: md5
-      md5: 7592332f2fc5bdef3ec0bec8698a5351
-      size: 767
+      md5: d8d7a430ae5efa2108a674d287de5bdf
+      size: 766
     - path: data/last_run_metrics.json
       hash: md5
-      md5: 1d4e926636dfae1f2520ecf7d330af37
-      size: 386
+      md5: 009c67264c98e2057ad36f30a8e41b44
+      size: 391
     - path: models/
       hash: md5
-      md5: 36c6221c45e63b979cc9d68d674d9774.dir
+      md5: 9761d361b3fe51303d95bb3b8a053bff.dir
       size: 8270
       nfiles: 2

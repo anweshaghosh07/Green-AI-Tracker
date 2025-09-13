@@ -8,8 +8,6 @@ __pycache__/
 
 # Data & artifacts
 data/
-dataset/
-models/
 mlruns/
 *.sqlite3
 
@@ -33,3 +31,5 @@ Thumbs.db
 !*.dvc
 !dvc.lock
 !dvc.yaml
+/dataset
+/models
