@@ -8,3 +8,4 @@ mlflow
 streamlit
 flake8
 pytest
+dvc[s3]
