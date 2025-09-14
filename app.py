@@ -238,6 +238,7 @@ date_range = st.sidebar.date_input("Date range", value=(min_date, max_date), min
 
 # apply filters
 filtered = df.copy()
+filtered["datetime"] = pd.to_datetime(filtered["datetime"]).dt.tz_localize(None)
 if selected_models:
     filtered = filtered[filtered["model"].isin(selected_models)]
 if selected_datasets:
