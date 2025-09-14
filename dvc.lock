@@ -10,23 +10,23 @@ stages:
       nfiles: 2
     - path: src/train_with_cc_ml.py
       hash: md5
-      md5: f2b35065d003ef61e9feb23d8911a272
-      size: 6448
+      md5: bea1b23f299f377638538f95da740240
+      size: 19934
     outs:
     - path: data/baseline_metrics.csv
       hash: md5
-      md5: 6935eaf01ac3b4a42b0226346a0e8386
-      size: 309
+      md5: 851f3a10c25113463463c3284dba66c7
+      size: 621
     - path: data/emissions/emissions.csv
       hash: md5
-      md5: d8d7a430ae5efa2108a674d287de5bdf
-      size: 766
+      md5: c1ea0dfef80d24a3f32d8ef667d91cd3
+      size: 765
     - path: data/last_run_metrics.json
       hash: md5
-      md5: 009c67264c98e2057ad36f30a8e41b44
-      size: 391
+      md5: bdf468aabb63f8f583780f1fa80c0932
+      size: 801
     - path: models/
       hash: md5
-      md5: 9761d361b3fe51303d95bb3b8a053bff.dir
+      md5: d7b17b6cb9b0f97728b12087c1a4aa21.dir
       size: 8270
       nfiles: 2
