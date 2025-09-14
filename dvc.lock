@@ -13,18 +13,10 @@ stages:
       md5: bea1b23f299f377638538f95da740240
       size: 19934
     outs:
-    - path: data/baseline_metrics.csv
-      hash: md5
-      md5: 851f3a10c25113463463c3284dba66c7
-      size: 621
     - path: data/emissions/emissions.csv
       hash: md5
       md5: c1ea0dfef80d24a3f32d8ef667d91cd3
       size: 765
-    - path: data/last_run_metrics.json
-      hash: md5
-      md5: bdf468aabb63f8f583780f1fa80c0932
-      size: 801
     - path: models/
       hash: md5
       md5: d7b17b6cb9b0f97728b12087c1a4aa21.dir
