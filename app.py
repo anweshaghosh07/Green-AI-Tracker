@@ -3,9 +3,8 @@
 Streamlit Dashboard for Green-AI Usage Tracker
 - Reads metrics from CSV/JSON/DVC/CodeCarbon
 - If no metrics found, runs fallback training (LogisticRegression on digits)
-- Shows accuracy vs CO₂, trends, filters, downloads
+- Shows accuracy vs CO₂, trends, filters, downloads, efficiency, and CO2 savings
 """
-# app.py
 import io
 import json
 import time
@@ -39,18 +38,16 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 EMISSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
-st.set_page_config(page_title="Green AI Tracker", page_icon="🌍", layout="centered")
+st.set_page_config(page_title="Green AI Tracker", page_icon="🌍", layout="wide")
 
 # ---------- FALLBACK TRAINING ----------
 def run_fallback_training():
-    st.warning("No metrics found — running fallback baseline training...")
+    st.warning("No metrics found — Running fallback baseline training...")
 
     digits = load_digits()
     X = digits.data
     y = digits.target
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    X_train, X_test, y_train, y_test = train_test_split( X, y, test_size=0.2, random_state=42, stratify=y )
 
     scaler = StandardScaler()
     X_train_s = scaler.fit_transform(X_train)
@@ -200,10 +197,17 @@ def format_datetime_col(df):
         df["date"] = pd.NaT
     return df
 
-
 # -------- UI --------
 st.title("🌱 Green-AI Usage Tracker")
-st.markdown("Compare Accuracy vs CO₂ emissions across your ML experiments. Filter runs, download metrics, and explore CO₂ savings.")
+
+with st.expander("📖 Project Description", expanded=True):
+    st.markdown("""
+    This dashboard tracks **Green-AI usage metrics**:
+    - Accuracy vs CO₂ trade-offs across models, datasets, and tasks.
+    - Aggregate KPIs (mean, median, efficiency).
+    - Trend analysis over time.
+    - CO₂ savings when switching to smaller/efficient models.
+    """)
 
 # Load data
 df = load_metrics()
@@ -215,6 +219,13 @@ df = format_datetime_col(df)
 st.sidebar.header("🔹Filters & Settings")
 models = sorted(df["model"].dropna().unique().tolist())
 selected_models = st.sidebar.multiselect("Select Model(s)", options=models, default=models if models else [])
+
+datasets = df["dataset"].dropna().unique().tolist() if "dataset" in df.columns else []
+selected_datasets = st.sidebar.multiselect("Select Dataset(s)", options=datasets, default=datasets)
+
+tasks = df["task"].dropna().unique().tolist() if "task" in df.columns else []
+selected_tasks = st.sidebar.multiselect("Select Task(s)", options=tasks, default=tasks)
+
 if "datetime" in df.columns and not df["datetime"].dropna().empty:
     min_date = df["datetime"].min().date()
     max_date = df["datetime"].max().date()
@@ -229,6 +240,10 @@ date_range = st.sidebar.date_input("Date range", value=(min_date, max_date), min
 filtered = df.copy()
 if selected_models:
     filtered = filtered[filtered["model"].isin(selected_models)]
+if selected_datasets:
+    filtered = filtered[filtered["dataset"].isin(selected_datasets)]
+if selected_tasks:
+    filtered = filtered[filtered["task"].isin(selected_tasks)]
 
 if "datetime" in filtered.columns and not filtered["datetime"].dropna().empty:
     if isinstance(date_range, tuple) and len(date_range) == 2:
@@ -240,16 +255,26 @@ else:
     filtered["datetime"] = pd.date_range(end=pd.Timestamp.now(), periods=len(filtered)).to_pydatetime()
 
 # Main layout: KPIs and plots
-kpi1, kpi2, kpi3 = st.columns(3)
-kpi_avg_acc = filtered["accuracy"].mean() if not filtered["accuracy"].dropna().empty else np.nan
-kpi_avg_co2 = filtered["emissions_kg"].mean() if not filtered["emissions_kg"].dropna().empty else np.nan
-kpi_total_co2 = filtered["emissions_kg"].sum() if not filtered["emissions_kg"].dropna().empty else np.nan
+k1, k2, k3, k4 = st.columns(4)
+mean_acc = filtered["accuracy"].mean() if not filtered["accuracy"].dropna().empty else np.nan
+median_acc = filtered["accuracy"].median() if not filtered["accuracy"].dropna().empty else np.nan
+mean_co2 = filtered["emissions_kg"].mean() if not filtered["emissions_kg"].dropna().empty else np.nan
+total_co2 = filtered["emissions_kg"].sum() if not filtered["emissions_kg"].dropna().empty else np.nan
 
-kpi1.metric("Average accuracy", f"{kpi_avg_acc:.3f}" if not np.isnan(kpi_avg_acc) else "N/A")
-kpi2.metric("Average CO₂ (kg)", f"{kpi_avg_co2:.6f}" if not np.isnan(kpi_avg_co2) else "N/A")
-kpi3.metric("Total CO₂ (kg)", f"{kpi_total_co2:.6f}" if not np.isnan(kpi_total_co2) else "N/A")
+efficiency = (filtered["accuracy"] / filtered["emissions_kg"].replace(0, np.nan))
+best_idx = efficiency.idxmax() if efficiency.notna().any() else None
+best_run = filtered.loc[best_idx] if best_idx is not None else None
 
-st.subheader(" Accuracy vs CO₂ (per run)")
+k1.metric("Mean accuracy", f"{mean_acc:.3f}" if not np.isnan(mean_acc) else "N/A")
+k2.metric("Median accuracy", f"{median_acc:.3f}" if not np.isnan(median_acc) else "N/A")
+k3.metric("Mean CO₂ (kg/run)", f"{mean_co2:.6f}" if not np.isnan(mean_co2) else "N/A")
+k4.metric("Total CO₂ (kg)", f"{total_co2:.6f}" if not np.isnan(total_co2) else "N/A")
+
+if best_run is not None:
+    st.markdown(f"**Best efficiency run:** {best_run['model']} — "
+                f"Acc {best_run['accuracy']:.2f}% / CO₂ {best_run['emissions_kg']:.4f} kg")
+
+st.subheader("📊 Accuracy vs CO₂ (per run)")
 if filtered.empty:
     st.info("No runs match filters. Run training or pull data via DVC to populate.")
 else:
@@ -263,17 +288,25 @@ else:
         hover_data=["datetime", "train_time_sec", "log_loss", "n_train", "n_test", "notes"],
         labels={"emissions_kg": "CO₂ (kg)", "accuracy": "Accuracy"}
     )
-    st.plotly_chart(scatter_fig, use_container_width=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(scatter_fig, use_container_width=True)
+    with col2:
+        model_summary = filtered.groupby("model")["accuracy"].mean().reset_index()
+        bar_fig = px.bar(model_summary, x="model", y="accuracy", color="model",
+                         title="Mean Accuracy per Model")
+        st.plotly_chart(bar_fig, use_container_width=True)
 
     # time series: accuracy & CO2 over time (two panels)
-    st.subheader("Trends over time")
+    st.subheader("📈 Trends over time")
     fig_acc = px.line(filtered.sort_values("datetime"), x="datetime", y="accuracy", color="model", markers=True)
     fig_co2 = px.line(filtered.sort_values("datetime"), x="datetime", y="emissions_kg", color="model", markers=True)
     st.plotly_chart(fig_acc, use_container_width=True)
     st.plotly_chart(fig_co2, use_container_width=True)
 
     # Train time vs Energy plot
-    st.subheader("Training Time vs Energy")
+    st.subheader("⚡ Training Time vs Energy")
     if "train_time_sec" in filtered.columns and "energy_kwh" in filtered.columns:
         fig_eff = px.scatter(filtered, x="train_time_sec", y="energy_kwh", color="model",
                              hover_data=["datetime", "accuracy", "emissions_kg"],
@@ -285,8 +318,8 @@ else:
         st.info("No energy data available — run CodeCarbon-enabled training to populate this chart.")
 
     # Runs Table
-    st.subheader("Runs Table")
-    show_cols = ["datetime", "model", "accuracy", "log_loss", "train_time_sec", "emissions_kg", "energy_kwh", "notes"]
+    st.subheader("📋 Runs Table")
+    show_cols = ["datetime", "model", "dataset", "task", "accuracy", "log_loss", "train_time_sec", "emissions_kg", "energy_kwh", "notes"]
 
     # Only keep columns that actually exist in the dataframe
     available_cols = [c for c in show_cols if c in filtered.columns]
@@ -303,7 +336,7 @@ else:
         st.info("No valid columns found to display runs table.")
 
 # CO2 saved analysis
-st.subheader("CO₂ Saved Analysis: Compare two models")
+st.subheader("🌍 CO₂ Saved Analysis: Compare two models")
 if len(models) < 2:
     st.info("Need at least two different models in the dataset to compute CO₂ savings.")
 else:
@@ -337,4 +370,4 @@ else:
         st.warning("Selected models don't have emissions data in the filtered set. Try widening the date range or selecting different models.")
 
 st.markdown("---")
-st.caption("Tip: If metrics are stale or missing, run training (dvc repro) locally and push artifacts, then refresh this page.")
+st.caption("Tip: If metrics are stale or missing, run training ('dvc repro') locally and push artifacts, then refresh this page.")
