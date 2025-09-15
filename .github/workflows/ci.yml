@@ -49,7 +49,19 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: dvc pull -r myremote
 
-    # 7. Run pipeline (training + metrics logging)
+    # 7.1 Start MLflow Tracking Server
+    - name: Start MLflow Tracking Server
+      run: nohup mlflow server --host 127.0.0.1 --port 5000 &
+
+    # 7.2 Wait for MLflow to be ready
+    - name: Wait for MLflow to be ready
+      run: |
+        for i in {1..10}; do
+          nc -z 127.0.0.1 5000 && break
+          sleep 1
+        done
+
+    # 7.3 Run pipeline (training + metrics logging)
     - name: DVC Repro
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

@@ -15,10 +15,10 @@ stages:
     outs:
     - path: data/emissions/emissions.csv
       hash: md5
-      md5: c1ea0dfef80d24a3f32d8ef667d91cd3
-      size: 765
+      md5: a5b1e6c205a461f1bf057573a3332b8c
+      size: 768
     - path: models/
       hash: md5
-      md5: d7b17b6cb9b0f97728b12087c1a4aa21.dir
+      md5: 82624fba51e57023e5431004c4a9d584.dir
       size: 8270
       nfiles: 2
