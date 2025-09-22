@@ -6,6 +6,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # --- PERMISSIONS BLOCK ---
+    permissions:
+      contents: read
+      packages: write # This line is essential
+    # ------------------------------------
+
     steps:
       - uses: actions/checkout@v4
 
