@@ -387,13 +387,15 @@ def main():
 
     # 4) MLflow logging
     if USE_MLFLOW:
-        # try to connect to local MLflow server, else default local 'mlruns'
+        # Get the MLflow URI from the environment variable if it exists, otherwise default to localhost
+        mlflow_tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
         try:
-            mlflow.set_tracking_uri("http://127.0.0.1:5000")
+            mlflow.set_tracking_uri(mlflow_tracking_uri)
             client = mlflow.tracking.MlflowClient()
             client.search_experiments()  # quick ping
+            print(f"Successfully connected to MLflow server at {mlflow_tracking_uri}")
         except Exception:
-            print("Warning: Could not connect to MLflow server at http://127.0.0.1:5000. Using local mlruns/ instead.")
+            print(f"Warning: Could not connect to MLflow server at {mlflow_tracking_uri}. Using local mlruns/ instead.")
         mlflow.set_experiment(args.mlflow_experiment)
 
     # Run loop

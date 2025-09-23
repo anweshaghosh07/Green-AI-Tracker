@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  mlflow:
+    image: python:3.10-slim
+    working_dir: /mlflow
+    volumes:
+      - ./mlruns:/mlflow/mlruns # Persists mlruns data on your local machine
+    command: >
+      bash -c "pip install mlflow sqlalchemy psycopg2-binary &&
+               mlflow server --host 0.0.0.0 --port 5000
+               --backend-store-uri sqlite:///mlruns/mlflow.db
+               --default-artifact-root file:/mlflow/mlruns"
+    ports:
+      - "5000:5000"
+
+  app:
+    image: green-ai-tracker:latest
+    build: .
+    volumes:
+      - ./data:/app/data # Mount data for the app
+      - ./models:/app/models # Mount models for the app
+      - ./mlruns:/app/mlruns # Mount mlruns for the app
+      - ./src:/app/src   # for live code updates
+    ports:
+      - "8501:8501"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - mlflow
