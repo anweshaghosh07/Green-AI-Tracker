@@ -454,7 +454,8 @@ def main():
         # Append to CSV
         metrics_for_csv = {
             "run_id": metrics.get("run_uuid"),
-            "timestamp": metrics.get("human_timestamp"),
+            "timestamp": metrics.get("timestamp"),
+            "human_timestamp": metrics.get("human_timestamp"), 
             "model": metrics.get("model"),
             "accuracy": metrics.get("accuracy"),
             "log_loss": metrics.get("log_loss"),
@@ -470,7 +471,8 @@ def main():
             "scaler_artifact": metrics.get("scaler_artifact"),
             "notes": metrics.get("notes"),
         }
-        append_to_csv(METRICS_CSV, metrics_for_csv)
+        dfm = pd.DataFrame([metrics_for_csv])
+        dfm.to_csv(METRICS_CSV, mode="a", header=not METRICS_CSV.exists(), index=False)
 
     print("All runs complete. Appended results to", METRICS_CSV)
 

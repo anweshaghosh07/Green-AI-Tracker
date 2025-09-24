@@ -238,7 +238,16 @@ date_range = st.sidebar.date_input("Date range", value=(min_date, max_date), min
 
 # apply filters
 filtered = df.copy()
-filtered["datetime"] = pd.to_datetime(filtered["datetime"]).dt.tz_localize(None)
+# --- ensure datetime column always exists ---
+if "datetime" in filtered.columns:
+    filtered["datetime"] = pd.to_datetime(filtered["datetime"], errors="coerce").dt.tz_localize(None)
+elif "timestamp" in filtered.columns:
+    filtered["datetime"] = pd.to_datetime(filtered["timestamp"], errors="coerce").dt.tz_localize(None)
+else:
+    # fallback: create synthetic dates if missing
+    filtered["datetime"] = pd.date_range(end=pd.Timestamp.now(), periods=len(filtered)).to_pydatetime()
+
+# apply user-selected filters
 if selected_models:
     filtered = filtered[filtered["model"].isin(selected_models)]
 if selected_datasets:
@@ -246,13 +255,14 @@ if selected_datasets:
 if selected_tasks:
     filtered = filtered[filtered["task"].isin(selected_tasks)]
 
+# apply date range filter if available
 if "datetime" in filtered.columns and not filtered["datetime"].dropna().empty:
     if isinstance(date_range, tuple) and len(date_range) == 2:
         start_dt = pd.to_datetime(date_range[0])
         end_dt = pd.to_datetime(date_range[1]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
         filtered = filtered[(filtered["datetime"] >= start_dt) & (filtered["datetime"] <= end_dt)]
 else:
-    # ensure datetime exists for later plots
+    # fallback again, just to be safe
     filtered["datetime"] = pd.date_range(end=pd.Timestamp.now(), periods=len(filtered)).to_pydatetime()
 
 # Main layout: KPIs and plots
