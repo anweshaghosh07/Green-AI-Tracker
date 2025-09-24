@@ -10,15 +10,15 @@ stages:
       nfiles: 2
     - path: src/train_with_cc_ml.py
       hash: md5
-      md5: bea1b23f299f377638538f95da740240
-      size: 19934
+      md5: eda5212340e8f470d380663d0571b711
+      size: 20277
     outs:
     - path: data/emissions/emissions.csv
       hash: md5
-      md5: a5b1e6c205a461f1bf057573a3332b8c
-      size: 768
+      md5: 2db6a455f2ea497b1937df6103156ef2
+      size: 6900
     - path: models/
       hash: md5
-      md5: 82624fba51e57023e5431004c4a9d584.dir
-      size: 8270
-      nfiles: 2
+      md5: ef44b3672afb96bf3c66b73b8a1d3f03.dir
+      size: 27433514
+      nfiles: 27
