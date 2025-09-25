@@ -29,6 +29,8 @@ WORKDIR /app
 COPY --from=builder /usr/local /usr/local
 
 # Copy project files
+COPY data/ /app/data/
+COPY models/ /app/models/
 COPY . /app
 
 # Create non-root user for safety
