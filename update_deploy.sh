@@ -5,7 +5,7 @@ IMAGE_NAME="green-ai-tracker"
 IMAGE_TAG="latest"
 EC2_USER="ubuntu"                        
 EC2_HOST="13.233.94.174"            
-PEM_PATH="~/Downloads/aws-key.pem"                 
+PEM_PATH="$HOME/Downloads/aws-key.pem"                 
 PROJECT_DIR="/home/ubuntu/green-ai-tracker"  
 
 # === STEP 1: Commit & Push Code/Data ===
@@ -23,13 +23,14 @@ docker push ghcr.io/$GHCR_USER/$IMAGE_NAME:$IMAGE_TAG
 
 # === STEP 3: Deploy on EC2 ===
 echo "[DEPLOY] Connecting to EC2 ($EC2_HOST)..."
-ssh -i $PEM_PATH $EC2_USER@$EC2_HOST << 
-EOF
+ssh -i $PEM_PATH $EC2_USER@$EC2_HOST << EOF
     set -e
     cd $PROJECT_DIR
 
-    echo "[EC2] Pulling latest repo + data..."
+    echo "[EC2] Pulling latest repo..."
     git pull origin main
+
+    echo "[EC2] Pulling latest data/models from DVC..."
     dvc pull || true
 
     echo "[EC2] Pulling latest Docker image..."
