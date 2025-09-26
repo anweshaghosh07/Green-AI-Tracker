@@ -12,7 +12,6 @@ data/
 data/last_run_metrics.json
 # but DO track baseline_metrics.csv
 !data/baseline_metrics.csv
-mlartifacts/
 mlruns/
 *.sqlite3
 
