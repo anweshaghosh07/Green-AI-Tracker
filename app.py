@@ -160,33 +160,35 @@ def load_metrics():
         ])
     # attempt to merge with CodeCarbon csv (gives energy_kwh, duration etc.)
     if EMISSIONS_DIR.exists():
-        try:
-            df_cc = pd.read_csv(EMISSIONS_DIR)
-            # normalize cc emissions column names
-            if "emissions" in df_cc.columns and "emissions_kg" not in df.columns:
-                df_cc = df_cc.rename(columns={"emissions": "emissions_kg"})
-            # find a way to join: many times we'll simply append latest emissions if timestamps are near
-            # We'll create a df_cc_summary keyed by nearest timestamp (if both contain datetime)
-            if "timestamp" in df_cc.columns:
-                try:
-                    df_cc["datetime"] = pd.to_datetime(df_cc["timestamp"], unit="s")
-                except Exception:
-                    df_cc["datetime"] = pd.to_datetime(df_cc["timestamp"], errors="coerce")
-            merged = pd.merge_asof(
-                df.sort_values("datetime"),
-                df_cc.sort_values("datetime"),
-                on="datetime",
-                direction="nearest",
-                tolerance=pd.Timedelta("1m")  # only merge if timestamps within 1 minute
-            )
-            # prefer emissions_kg from baseline if present else from merged
-            merged["emissions_kg"] = merged["emissions_kg_x"].fillna(merged.get("emissions_kg_y"))
-            merged["energy_kwh"] = merged["energy_kwh_x"].fillna(merged.get("energy_consumed"))
-            # cleanup duplicated columns
-            merged = merged.rename(columns={c: c.replace("_x", "") for c in merged.columns})
-            return merged
-        except Exception:
-            return df
+        cc_files = list(EMISSIONS_DIR.glob("*.csv"))
+        if cc_files:
+            try:
+                df_cc = pd.read_csv(cc_files[-1])
+                # normalize cc emissions column names
+                if "emissions" in df_cc.columns and "emissions_kg" not in df.columns:
+                    df_cc = df_cc.rename(columns={"emissions": "emissions_kg"})
+                # find a way to join: many times we'll simply append latest emissions if timestamps are near
+                # We'll create a df_cc_summary keyed by nearest timestamp (if both contain datetime)
+                if "timestamp" in df_cc.columns:
+                    try:
+                        df_cc["datetime"] = pd.to_datetime(df_cc["timestamp"], unit="s")
+                    except Exception:
+                        df_cc["datetime"] = pd.to_datetime(df_cc["timestamp"], errors="coerce")
+                        merged = pd.merge_asof(
+                            df.sort_values("datetime"),
+                            df_cc.sort_values("datetime"),
+                            on="datetime",
+                            direction="nearest",
+                            tolerance=pd.Timedelta("1m")  # only merge if timestamps within 1 minute
+                        )
+                        # prefer emissions_kg from baseline if present else from merged
+                        merged["emissions_kg"] = merged["emissions_kg_x"].fillna(merged.get("emissions_kg_y"))
+                        merged["energy_kwh"] = merged["energy_kwh_x"].fillna(merged.get("energy_consumed"))
+                        # cleanup duplicated columns
+                        merged = merged.rename(columns={c: c.replace("_x", "") for c in merged.columns})
+                    return merged
+            except Exception:
+                return df
     return df
 
 
@@ -197,8 +199,136 @@ def format_datetime_col(df):
         df["date"] = pd.NaT
     return df
 
+# ---------- INSIGHTS HELPERS ----------
+try:
+    from fpdf2 import FPDF
+    _HAS_FPDF = True
+    _FPDF_VERSION = getattr(FPDF,"__version__","unknown")
+except Exception:
+    _HAS_FPDF = False
+    _FPDF_VERSION = None
+
+@st.cache_data
+def _normalize_accuracy(df: pd.DataFrame) -> pd.DataFrame:
+    """If accuracy values are in 0..1 convert to percent (0..100)."""
+    df = df.copy()
+    if "accuracy" not in df.columns or df["accuracy"].dropna().empty:
+        return df
+    # if max <= 1 assume fraction
+    if df["accuracy"].max() <= 1.0:
+        df["accuracy"] = df["accuracy"] * 100.0
+    return df
+
+@st.cache_data
+def aggregate_model_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """Return per-model aggregated stats (means, std, run counts)."""
+    df = _normalize_accuracy(df)
+    group = df.groupby("model", dropna=True)
+    stats = group.agg(
+        mean_accuracy = pd.NamedAgg(column="accuracy", aggfunc="mean"),
+        median_accuracy = pd.NamedAgg(column="accuracy", aggfunc="median"),
+        mean_emissions = pd.NamedAgg(column="emissions_kg", aggfunc="mean"),
+        std_emissions = pd.NamedAgg(column="emissions_kg", aggfunc="std"),
+        runs = pd.NamedAgg(column="model", aggfunc="count")
+    ).reset_index()
+    # Efficiency: accuracy per kg CO2 (higher = better), protect divide-by-zero
+    stats["efficiency"] = stats.apply(lambda r: (r["mean_accuracy"] / r["mean_emissions"]) if r["mean_emissions"] and r["mean_emissions"] > 0 else float("nan"), axis=1)
+    return stats
+
+@st.cache_data
+def pareto_frontier(stats: pd.DataFrame) -> pd.DataFrame:
+    """
+    Return non-dominated models (maximize accuracy, minimize emissions).
+    A model is dominated if there exists another model with >= accuracy and <= emissions
+    and strictly better in at least one criterion.
+    """
+    if stats.empty:
+        return stats
+    records = stats.to_dict("records")
+    nondom = []
+    for a in records:
+        dominated = False
+        for b in records:
+            if (b["mean_accuracy"] >= a["mean_accuracy"] and b["mean_emissions"] <= a["mean_emissions"]) and (b["mean_accuracy"] > a["mean_accuracy"] or b["mean_emissions"] < a["mean_emissions"]):
+                dominated = True
+                break
+        if not dominated:
+            nondom.append(a)
+    return pd.DataFrame(nondom)
+
+def compute_savings(stats: pd.DataFrame, from_model: str, to_model: str):
+    """
+    Compute mean CO2 savings and relative % change in accuracy if you switch from -> to.
+    Returns dict: {mean_from, mean_to, saved_kg, saved_pct, acc_from, acc_to, acc_delta_pct}
+    """
+    if from_model not in stats["model"].values or to_model not in stats["model"].values:
+        return None
+    a = stats[stats["model"]==from_model].iloc[0]
+    b = stats[stats["model"]==to_model].iloc[0]
+    mean_from = a["mean_emissions"]
+    mean_to = b["mean_emissions"]
+    saved_kg = mean_from - mean_to if (mean_from is not None and mean_to is not None) else None
+    saved_pct = (saved_kg / mean_from * 100.0) if mean_from and mean_from != 0 else None
+    acc_from = a["mean_accuracy"]
+    acc_to = b["mean_accuracy"]
+    acc_delta_pct = (acc_to - acc_from)  # positive means to_model is more accurate
+    return {
+        "mean_from": mean_from,
+        "mean_to": mean_to,
+        "saved_kg": saved_kg,
+        "saved_pct": saved_pct,
+        "acc_from": acc_from,
+        "acc_to": acc_to,
+        "acc_delta_pct": acc_delta_pct
+    }
+
+def generate_insights_markdown(date_str: str, stats: pd.DataFrame, pareto_df: pd.DataFrame, recommendations: list, comparison_text: str) -> bytes:
+    """Create a markdown report (returned as bytes)"""
+    md = []
+    md.append(f"🌍 Green-AI Insights — {date_str}\n")
+    md.append("📋Per-model summary (mean accuracy and mean CO₂)\n")
+    if not stats.empty:
+        try:
+            md.append(stats[["model","mean_accuracy","mean_emissions","efficiency","runs"]].to_markdown(index=False))
+        except Exception:
+            # fallback plain csv-style
+            md.append(stats[["model","mean_accuracy","mean_emissions","efficiency","runs"]].to_csv(index=False))
+    else:
+        md.append("_No stats available_\n")
+    md.append("\n Pareto frontier (recommended trade-offs)\n")
+    if not pareto_df.empty:
+        for _, r in pareto_df.iterrows():
+            md.append(f"- **{r['model']}** — accuracy {r['mean_accuracy']:.2f}%, mean CO₂ {r['mean_emissions']:.6f} kg, efficiency {r['efficiency']:.2f} (%/kg)")
+    else:
+        md.append("_No pareto models found_\n")
+    md.append("\n Automated recommendations\n")
+    for rec in recommendations:
+        md.append(f"- {rec}")
+    md.append("\n Example comparison\n")
+    md.append(comparison_text or "No comparisons available.")
+    return ("\n\n".join(md)).encode("utf-8")
+
+def markdown_to_pdf_bytes(md_bytes: bytes) -> bytes:
+    """Render a simple text-like PDF from markdown using fpdf/fpdf2."""
+    if not _HAS_FPDF:
+        raise RuntimeError("fpdf not available")
+    text = md_bytes.decode("utf-8")
+    pdf = FPDF()
+    pdf.set_auto_page_break(True, margin=12)
+    pdf.add_page()
+    pdf.set_font("Arial", size=11)
+    for line in text.splitlines():
+        # FPDF's multi_cell handles wrapping
+        pdf.multi_cell(0, 6, line)
+    # fpdf2 supports output(dest="S") which returns str/bytes
+    try:
+        pdf_bytes = pdf.output(dest="S").encoder("latin1")
+    except TypeError:
+        pdf_bytes = pdf.output(dest="S")
+    return pdf_bytes
+
 # -------- UI --------
-st.title("🌱 Green-AI Usage Tracker")
+st.title("Green-AI🌱 Usage Tracker")
 
 with st.expander("📖 Project Description", expanded=True):
     st.markdown("""
@@ -265,6 +395,101 @@ else:
     # fallback again, just to be safe
     filtered["datetime"] = pd.date_range(end=pd.Timestamp.now(), periods=len(filtered)).to_pydatetime()
 
+# ----- Add a view selector so user can switch between Dashboard & Insights -----
+view = st.sidebar.radio("🔹View", ["Dashboard", "Insights"], index=0)
+
+if view == "Insights":
+    # Build insights using the already-filtered DataFrame (respects sidebar filters)
+    stats = aggregate_model_stats(filtered)
+    pareto = pareto_frontier(stats)
+
+    st.header("🔎 Insights — Best trade-offs & recommendations")
+    st.markdown("Below we compute per-model averages and find the Pareto frontier (maximize accuracy, minimize CO₂).")
+
+    # Show aggregated table
+    if stats.empty:
+        st.info("No data available for insights. Ensure `baseline_metrics.csv` has runs with emissions_kg populated.")
+        st.stop()
+    st.subheader("Per-model summary")
+    st.dataframe(stats.sort_values("mean_accuracy", ascending=False).reset_index(drop=True), use_container_width=True)
+
+    # Pareto
+    st.subheader("Pareto frontier — best trade-offs")
+    if not pareto.empty:
+        st.table(pareto.sort_values(["mean_emissions","mean_accuracy"], ascending=[True, False]).reset_index(drop=True))
+    else:
+        st.info("Pareto frontier could not be computed (insufficient data).")
+
+    # Recommend top-by-efficiency (accuracy per CO2)
+    top_eff = stats.sort_values("efficiency", ascending=False).head(3)
+    st.subheader("🎯Top models by efficiency (accuracy per kg CO₂)")
+    st.table(top_eff[["model","mean_accuracy","mean_emissions","efficiency","runs"]])
+
+    # Automated pairwise comparison: recommend swaps that save CO2 with small accuracy loss
+    st.subheader("💡Actionable recommendations")
+    recs = []
+    # Conservative threshold: allow up to 1.0 percentage point accuracy drop
+    max_allowed_acc_drop_pct = st.slider("Max allowed accuracy drop (%) when recommending a lower-CO₂ model", 0.0, 5.0, 1.0, 0.1)
+    # Evaluate all model pairs (from higher emissions to lower)
+    for a in stats.itertuples():
+        for b in stats.itertuples():
+            if a.model == b.model:
+                continue
+            # only consider switching from a -> b if b has lower emissions
+            if b.mean_emissions is None or a.mean_emissions is None:
+                continue
+            if b.mean_emissions < a.mean_emissions:
+                savings = compute_savings(stats, a.model, b.model)
+                if savings is None:
+                    continue
+                # If accuracy loss within threshold (negative acc_delta_pct means drop)
+                acc_drop = savings["acc_delta_pct"]
+                # acc_drop is acc_to - acc_from; we want acceptable negative drop >= -max_allowed_acc_drop_pct
+                if acc_drop >= -max_allowed_acc_drop_pct:
+                    pct_str = f"{savings['saved_pct']:.2f}%" if savings['saved_pct'] is not None else "N/A"
+                    acc_change = f"{savings['acc_delta_pct']:+.2f}%"
+                    recs.append(f"Replace **{a.model}** (mean CO₂ {a.mean_emissions:.6f} kg) with **{b.model}** (mean CO₂ {b.mean_emissions:.6f} kg) → saves {pct_str} CO₂; accuracy change: {acc_change}.")
+
+    if recs:
+        for r in recs:
+            st.markdown(f"- {r}")
+    else:
+        st.info("No safe swaps found under the current accuracy-drop threshold.")
+
+    # Example: interactive compare two models (reuse earlier UI)
+    st.subheader("📋Compare two specific models")
+    m_from = st.selectbox("Model (from)", options=stats["model"].tolist(), index=0)
+    m_to = st.selectbox("Model (to)", options=[m for m in stats["model"].tolist() if m != m_from], index=0)
+    cmp = compute_savings(stats, m_from, m_to)
+    if cmp:
+        st.metric(f"Mean CO₂ (kg) - {m_from}", f"{cmp['mean_from']:.6f} kg")
+        st.metric(f"Mean CO₂ (kg) - {m_to}", f"{cmp['mean_to']:.6f} kg")
+        if cmp["saved_kg"] is not None:
+            st.metric(f"CO₂ Saved per run (switch {m_from} → {m_to})", f"{cmp['saved_kg']:.6f} kg")
+            st.metric(f"CO₂ Saved (%)", f"{cmp['saved_pct']:.2f}%")
+        st.write(
+            f"Accuracy change if you switch from **{m_from}** → **{m_to}**: "
+            f"{cmp['acc_delta_pct']:+.2f} percentage points."
+            )
+
+    # Export insights to Markdown and (optionally) PDF
+    date_str = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    comparison_text = f"Example comparison: {m_from} -> {m_to} saved {cmp['saved_pct']:.2f}% CO₂ (if data present)" if cmp and cmp.get("saved_pct") is not None else ""
+    md_bytes = generate_insights_markdown(date_str, stats, pareto, recs, comparison_text)
+
+    st.download_button("📥Download insights (Markdown)", md_bytes, file_name=f"insights_{datetime.utcnow().date()}.md", mime="text/markdown")
+
+    if _HAS_FPDF:
+        try:
+            pdf_bytes = markdown_to_pdf_bytes(md_bytes)
+            st.download_button("📥Download insights (PDF)", pdf_bytes, file_name=f"insights_{datetime.utcnow().date()}.pdf", mime="application/pdf")
+        except Exception as e:
+            st.warning("Could not create PDF: " + str(e))
+    else:
+        st.caption("Install `fpdf` to enable PDF export.")
+    # stop here so the Dashboard view doesn't render below
+    st.stop()
+
 # Main layout: KPIs and plots
 k1, k2, k3, k4 = st.columns(4)
 mean_acc = filtered["accuracy"].mean() if not filtered["accuracy"].dropna().empty else np.nan
@@ -276,13 +501,13 @@ efficiency = (filtered["accuracy"] / filtered["emissions_kg"].replace(0, np.nan)
 best_idx = efficiency.idxmax() if efficiency.notna().any() else None
 best_run = filtered.loc[best_idx] if best_idx is not None else None
 
-k1.metric("Mean accuracy", f"{mean_acc:.3f}" if not np.isnan(mean_acc) else "N/A")
+k1.metric("Mean accuracy", f"{mean_acc:.2f}" if not np.isnan(mean_acc) else "N/A")
 k2.metric("Median accuracy", f"{median_acc:.3f}" if not np.isnan(median_acc) else "N/A")
 k3.metric("Mean CO₂ (kg/run)", f"{mean_co2:.6f}" if not np.isnan(mean_co2) else "N/A")
 k4.metric("Total CO₂ (kg)", f"{total_co2:.6f}" if not np.isnan(total_co2) else "N/A")
 
 if best_run is not None:
-    st.markdown(f"**Best efficiency run:** {best_run['model']} — "
+    st.markdown(f"🏆Best efficiency run: {best_run['model']} — "
                 f"Acc {best_run['accuracy']:.2f}% / CO₂ {best_run['emissions_kg']:.4f} kg")
 
 st.subheader("📊 Accuracy vs CO₂ (per run)")
