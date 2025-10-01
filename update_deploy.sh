@@ -5,7 +5,7 @@ IMAGE_NAME="green-ai-tracker"
 IMAGE_TAG="latest"
 EC2_USER="ubuntu"                        
 EC2_HOST="13.233.94.174"            
-PEM_PATH="$C:\Users\anwes\Documents\key.pem"                 
+PEM_PATH="$C:\Users\anwes\Downloads\key.pem""                 
 PROJECT_DIR="/home/ubuntu/green-ai-tracker"  
 
 # === STEP 1: Commit & Push Code/Data ===
