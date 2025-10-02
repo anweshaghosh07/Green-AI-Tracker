@@ -1,6 +1,6 @@
 # 🌍 Sustainability & Green-AI Usage Tracker
 
-**Live Demo:** [http://13.233.94.174/](http://13.233.94.174/)
+**Live Demo:** http://13.233.94.174/
 
 ## 🚀 Project Objective
 This project aims to develop a tool that trains standard machine learning models while simultaneously tracking their computational and environmental footprint using CodeCarbon. The entire workflow is managed using MLOps principles (MLflow, GitHub Actions) and deployed as an interactive web application with Streamlit and AWS.
@@ -88,7 +88,7 @@ This application is deployed on an AWS EC2 instance using a Docker container pul
     # Example run command on EC2
     docker run -d -p 80:8501 ghcr.io/your-github-username/green-ai-tracker:latest
     ```
-5.  **Verify Deployment:** Open http://<ec2-public-ip>/
+5.  **Verify Deployment:** Open http://`<ec2-public-ip>`/
 Ensure historical metrics are displayed.    
 
 ## ♻️ Reproducing a Training Run
