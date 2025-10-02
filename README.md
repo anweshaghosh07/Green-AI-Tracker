@@ -1,6 +1,6 @@
 # 🌍 Sustainability & Green-AI Usage Tracker
 
-**Live Demo:** [http://13.233.94.174/]
+**Live Demo:** [http://13.233.94.174/](http://13.233.94.174/)
 
 ## 🚀 Project Objective
 This project aims to develop a tool that trains standard machine learning models while simultaneously tracking their computational and environmental footprint using CodeCarbon. The entire workflow is managed using MLOps principles (MLflow, GitHub Actions) and deployed as an interactive web application with Streamlit and AWS.
@@ -23,7 +23,8 @@ Follow these steps to set up the project locally, retrieve the versioned data, a
 ### Prerequisites
 - Python 3.11
 - Git
-- DVC installed 
+- DVC 
+- Docker
 
 ### Installation and Reproduction Steps
 1.  **Clone the repository:**
@@ -64,9 +65,6 @@ Follow these steps to set up the project locally, retrieve the versioned data, a
 ## 🐳 Running with Docker & Docker Compose
 The easiest way to run the entire application stack locally is with Docker Compose.
 
-### Prerequisites
-- Docker Desktop installed and running.
-
 ### Steps
 1.  **Build and start the services:**
     ```bash
@@ -90,6 +88,8 @@ This application is deployed on an AWS EC2 instance using a Docker container pul
     # Example run command on EC2
     docker run -d -p 80:8501 ghcr.io/your-github-username/green-ai-tracker:latest
     ```
+5.  **Verify Deployment:** Open http://<ec2-public-ip>/
+Ensure historical metrics are displayed.    
 
 ## ♻️ Reproducing a Training Run
 To execute the training pipeline and generate new metrics, use DVC.
