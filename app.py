@@ -9,12 +9,13 @@ import io
 import json
 import time
 from pathlib import Path
-from datetime import datetime
+from datetime import timezone, datetime
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import altair as alt
 
 # ML/metrics for fallback
 from sklearn.datasets import load_digits
@@ -366,6 +367,10 @@ else:
 
 date_range = st.sidebar.date_input("Date range", value=(min_date, max_date), min_value=min_date, max_value=max_date)
 
+if st.sidebar.button("Refresh Data (clear cache )"):
+    st.cache_data.clear()
+    st.experimental_rerun()
+
 # apply filters
 filtered = df.copy()
 # --- ensure datetime column always exists ---
@@ -473,8 +478,11 @@ if view == "Insights":
             )
 
     # Export insights to Markdown and (optionally) PDF
-    date_str = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-    comparison_text = f"Example comparison: {m_from} -> {m_to} saved {cmp['saved_pct']:.2f}% CO₂ (if data present)" if cmp and cmp.get("saved_pct") is not None else ""
+    date_str = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    comparison_text = (
+        f"Example comparison: {m_from} -> {m_to} saved {cmp['saved_pct']:.2f}% CO₂ (if data present)"
+        if cmp and cmp.get("saved_pct") is not None else ""
+   )
     md_bytes = generate_insights_markdown(date_str, stats, pareto, recs, comparison_text)
 
     st.download_button("📥Download insights (Markdown)", md_bytes, file_name=f"insights_{datetime.utcnow().date()}.md", mime="text/markdown")
@@ -485,8 +493,6 @@ if view == "Insights":
             st.download_button("📥Download insights (PDF)", pdf_bytes, file_name=f"insights_{datetime.utcnow().date()}.pdf", mime="application/pdf")
         except Exception as e:
             st.warning("Could not create PDF: " + str(e))
-    else:
-        st.caption("Install `fpdf` to enable PDF export.")
     # stop here so the Dashboard view doesn't render below
     st.stop()
 
@@ -507,7 +513,7 @@ k3.metric("Mean CO₂ (kg/run)", f"{mean_co2:.6f}" if not np.isnan(mean_co2) els
 k4.metric("Total CO₂ (kg)", f"{total_co2:.6f}" if not np.isnan(total_co2) else "N/A")
 
 if best_run is not None:
-    st.markdown(f"🏆Best efficiency run: {best_run['model']} — "
+    st.markdown(f"🏆Best Efficiency Run: {best_run['model']} — "
                 f"Acc {best_run['accuracy']:.2f}% / CO₂ {best_run['emissions_kg']:.4f} kg")
 
 st.subheader("📊 Accuracy vs CO₂ (per run)")
@@ -515,41 +521,72 @@ if filtered.empty:
     st.info("No runs match filters. Run training or pull data via DVC to populate.")
 else:
     # scatter plot: accuracy vs emissions
-    scatter_fig = px.scatter(
-        filtered,
-        x="emissions_kg",
-        y="accuracy",
-        color="model",
-        size="train_time_sec" if "train_time_sec" in filtered.columns else None,
-        hover_data=["datetime", "train_time_sec", "log_loss", "n_train", "n_test", "notes"],
-        labels={"emissions_kg": "CO₂ (kg)", "accuracy": "Accuracy"}
-    )
+    scatter = alt.Chart(filtered).mark_circle(size=80, opacity=0.7).encode(
+        x=alt.X('emissions_kg:Q', title='CO₂ (kg)'),
+        y=alt.Y('accuracy:Q', title='Accuracy (%)'),
+        color=alt.Color('model:N', title='Model', scale=alt.Scale(scheme='tableau10')),
+        tooltip=[
+            alt.Tooltip('run_id:N', title='Run ID'),
+            alt.Tooltip('model:N'),
+            alt.Tooltip('dataset:N'),
+            alt.Tooltip('task:N'),
+            alt.Tooltip('accuracy:Q', format='.2f'),
+            alt.Tooltip('emissions_kg:Q', format='.6f'),
+            alt.Tooltip('date:T')
+        ]
+    ).interactive()
+    st.altair_chart(scatter, use_container_width=True)
 
     col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(scatter_fig, use_container_width=True)
-    with col2:
+    with col1, st.spinner("Building mean accuracy per model chart…"):
         model_summary = filtered.groupby("model")["accuracy"].mean().reset_index()
-        bar_fig = px.bar(model_summary, x="model", y="accuracy", color="model",
-                         title="Mean Accuracy per Model")
-        st.plotly_chart(bar_fig, use_container_width=True)
-
+        bar_fig = alt.Chart(model_summary).mark_bar().encode(
+            x=alt.X('model:N', title='Model'),
+            y=alt.Y('accuracy:Q', title='Mean Accuracy (%)'),
+            color=alt.Color('model:N', legend=None),
+            tooltip=[alt.Tooltip('model:N'), alt.Tooltip('accuracy:Q', format='.2f')]
+        ).interactive()
+        st.altair_chart(bar_fig, use_container_width=True)
+    
     # time series: accuracy & CO2 over time (two panels)
     st.subheader("📈 Trends over time")
-    fig_acc = px.line(filtered.sort_values("datetime"), x="datetime", y="accuracy", color="model", markers=True)
-    fig_co2 = px.line(filtered.sort_values("datetime"), x="datetime", y="emissions_kg", color="model", markers=True)
-    st.plotly_chart(fig_acc, use_container_width=True)
-    st.plotly_chart(fig_co2, use_container_width=True)
+    if not filtered.empty:
+        # Accuracy trend
+        acc_trend = alt.Chart(filtered.sort_values("datetime")).mark_line(point=True).encode(
+            x=alt.X('datetime:T', title='Date'),
+            y=alt.Y('accuracy:Q', title='Accuracy (%)'),
+            color=alt.Color('model:N', title='Model', scale=alt.Scale(scheme='tableau10')),
+            tooltip=['datetime:T', 'model:N', 'accuracy:Q', 'emissions_kg:Q']
+        ).interactive()
+    
+        # Emissions trend
+        co2_trend = alt.Chart(filtered.sort_values("datetime")).mark_line(point=True).encode(
+            x=alt.X('datetime:T', title='Date'),
+            y=alt.Y('emissions_kg:Q', title='CO₂ (kg)'),
+            color=alt.Color('model:N', title='Model', scale=alt.Scale(scheme='tableau10')),
+            tooltip=['datetime:T', 'model:N', 'accuracy:Q', 'emissions_kg:Q']
+        ).interactive()
+        
+        st.altair_chart(acc_trend, use_container_width=True)
+        st.altair_chart(co2_trend, use_container_width=True)
+    else:
+        st.info("No data available for trends over time.")
 
     # Train time vs Energy plot
     st.subheader("⚡ Training Time vs Energy")
     if "train_time_sec" in filtered.columns and "energy_kwh" in filtered.columns:
-        fig_eff = px.scatter(filtered, x="train_time_sec", y="energy_kwh", color="model",
-                             hover_data=["datetime", "accuracy", "emissions_kg"],
-                             labels={"train_time_sec": "Training Time (s)", "energy_kwh": "Energy Consumed (kWh)"},
-                             title="Training Time vs Energy Usage"
-                            )
-        st.plotly_chart(fig_eff, use_container_width=True)
+        eff_chart = alt.Chart(filtered).mark_circle(size=80, opacity=0.7).encode(
+            x=alt.X("train_time_sec:Q", title="Training Time (s)"),
+            y=alt.Y("energy_kwh:Q", title="Energy Consumed (kWh)"),
+            color=alt.Color("model:N", title="Model", scale=alt.Scale(scheme='tableau10')),
+            tooltip=[
+                alt.Tooltip("datetime:T"),
+                alt.Tooltip("model:N"),
+                alt.Tooltip("accuracy:Q", format=".2f"),
+                alt.Tooltip("emissions_kg:Q", format=".6f")
+            ]
+        ).interactive()
+        st.altair_chart(eff_chart, use_container_width=True)
     else:
         st.info("No energy data available — run CodeCarbon-enabled training to populate this chart.")
 
@@ -604,6 +641,3 @@ else:
         st.plotly_chart(fig_cmp, use_container_width=True)
     else:
         st.warning("Selected models don't have emissions data in the filtered set. Try widening the date range or selecting different models.")
-
-st.markdown("---")
-st.caption("Tip: If metrics are stale or missing, run training ('dvc repro') locally and push artifacts, then refresh this page.")
