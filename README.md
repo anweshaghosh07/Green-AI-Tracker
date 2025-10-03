@@ -17,6 +17,35 @@ As AI models grow in complexity, their computational and energy demands skyrocke
 -   **Automated CI/CD & MLOps:** **GitHub Actions** for continuous integration (testing, linting) and continuous delivery (publishing Docker images).
 -   **Cloud Deployment:** Containerized with **Docker** and deployed on **AWS EC2**.
 
+## 🏗️ Architecture
+The system integrates:
+- **Training + Tracking**: Models log accuracy, emissions, and energy.
+- **Experiment Management**: MLflow + DVC ensure reproducibility.
+- **Visualization**: Streamlit dashboard with interactive filters and insights.
+- **Deployment**: Dockerized app running on AWS EC2.
+
+![Architecture Diagram](docs/screenshots/architecture.png)
+
+## 🔄 Pipeline Workflow
+1. **Data & Model Versioning** — managed by DVC.  
+2. **Experiment Runs** — wrapped with CodeCarbon + MLflow.  
+3. **Metrics Logging** — results stored in `data/baseline_metrics.csv` and MLflow UI.  
+4. **Dashboard Visualization** — interactive insights in Streamlit.  
+5. **Containerization** — Docker image for portability.  
+6. **Deployment** — hosted on AWS EC2 with public access.
+
+![Pipeline Flowchart](docs/screenshots/pipeline.png)
+
+## 📊 Dashboard Preview
+The Streamlit dashboard includes:
+- Accuracy vs CO₂ trade-offs
+- Trends over time
+- Efficiency (accuracy per CO₂ unit)
+- CO₂ savings analysis
+- Automated **Insights & Recommendations**
+
+![Dashboard Screenshot & Demo Video](tests/screenshots/)
+
 ## 🚀 Getting Started
 Follow these steps to set up the project locally, retrieve the versioned data, and run the application.
 

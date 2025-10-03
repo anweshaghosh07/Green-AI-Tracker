@@ -1,0 +1,12 @@
+graph LR
+  subgraph Dev
+    T["Developer workstation"] -->|git push| Repo[GitHub]
+    T -->|dvc push| DVCRemote["(DVC remote)"]
+  end
+
+  Repo -->|CI build| ContainerRegistry[GHCR]
+  ContainerRegistry -->|pull| EC2[EC2 instance]
+  EC2 -->|docker run| AppContainer["Streamlit container"]
+  AppContainer -->|reads/writes| Persist["(/app/data, /app/models, /app/mlruns) mounted"]
+  Persist --> DVCRemote
+  AppContainer -->|optional: triggers| Trainer["Trainer service or background training"]

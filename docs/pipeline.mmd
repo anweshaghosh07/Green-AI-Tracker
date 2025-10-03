@@ -1,0 +1,12 @@
+flowchart LR
+  A["Data (digits, MNIST)"] --> B["DVC (data/baseline_metrics.csv)"]
+  B --> C["Training scripts<br/>(src/train_with_cc_ml.py)"]
+  C --> D["MLflow (experiments, artifacts)"]
+  C --> E["CodeCarbon (emissions.csv)"]
+  D & E --> F["Data/metrics (data/baseline_metrics.csv)"]
+  F --> G["Streamlit Dashboard (app.py)"]
+  G --> H["Docker image → GHCR"]
+  H --> I["AWS EC2 deployment"]
+
+  style A fill:#f9f,stroke:#333,stroke-width:1px
+  style G fill:#9f9,stroke:#333,stroke-width:1px
