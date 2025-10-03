@@ -44,8 +44,7 @@ The Streamlit dashboard includes:
 - CO₂ savings analysis
 - Automated **Insights & Recommendations**
 
-![Dashboard Screenshots](tests/screenshots/dashboard_filtered.png) 
-(tests/screenshots/dashboard_insights.png)
+![Dashboard Screenshot](tests/screenshots/dashboard_filtered.png) 
 
 ## 🚀 Getting Started
 Follow these steps to set up the project locally, retrieve the versioned data, and run the application.
