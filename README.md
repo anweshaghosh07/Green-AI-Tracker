@@ -1,7 +1,5 @@
 # 🌍 Sustainability & Green-AI Usage Tracker
 
-**Live Demo:** http://13.233.94.174/
-
 ## 🚀 Project Objective
 This project aims to develop a tool that trains standard machine learning models while simultaneously tracking their computational and environmental footprint using CodeCarbon. The entire workflow is managed using MLOps principles (MLflow, GitHub Actions) and deployed as an interactive web application with Streamlit and AWS.
 
